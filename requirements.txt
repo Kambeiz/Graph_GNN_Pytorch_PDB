@@ -1,0 +1,12 @@
+# Core PyTorch extensions (pip-only packages)
+torch-cluster>=1.6.3
+torch-spline-conv>=1.2.2
+
+# Additional packages that might need pip installation
+# (Most packages are now handled by conda environment.yml)
+
+# Optional: Development and testing packages
+pytest>=7.0.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0

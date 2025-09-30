@@ -1,0 +1,2 @@
+# This file ensures the data/processed directory is preserved in git
+# Processed molecular graphs and protein features will be stored here

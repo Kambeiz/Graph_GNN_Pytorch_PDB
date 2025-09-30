@@ -1,0 +1,2 @@
+# This file ensures the models/checkpoints directory is preserved in git
+# Model checkpoints (.pth, .pt files) will be stored here

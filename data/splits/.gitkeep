@@ -1,0 +1,2 @@
+# This file ensures the data/splits directory is preserved in git
+# Train/validation/test splits will be stored here

@@ -1,0 +1,2 @@
+# This file ensures the data/raw directory is preserved in git
+# Actual datasets will be downloaded using src/download_data.py
