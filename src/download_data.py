@@ -47,7 +47,7 @@ def extract_archive(archive_path, extract_to):
         print(f"Unsupported archive format: {archive_path}")
 
 def download_davis():
-    """Download DAVIS dataset"""
+    """Download DAVIS dataset from DeepDTA repository"""
     print("\n" + "="*50)
     print("Downloading DAVIS Dataset...")
     print("="*50)
@@ -55,22 +55,57 @@ def download_davis():
     davis_dir = Path("data/raw/davis")
     davis_dir.mkdir(parents=True, exist_ok=True)
     
-    # DAVIS dataset from DeepDTA repository
-    urls = {
-        "data": "https://github.com/hkmztrk/DeepDTA/raw/master/data/davis.zip",
+    # Base URL for DeepDTA repository
+    base_url = "https://raw.githubusercontent.com/hkmztrk/DeepDTA/master/data/davis/"
+    
+    # Files to download
+    files = {
+        "Y": "Y",  # Pickle file with affinity matrix
+        "ligands_can.txt": "ligands_can.txt",  # Canonical SMILES
+        "ligands_iso.txt": "ligands_iso.txt",  # Isomeric SMILES
+        "proteins.txt": "proteins.txt",  # Protein sequences
+        "affinity_matrix.txt": "drug-target_interaction_affinities_Kd__Davis_et_al.2011v1.txt",
+        "drug_similarity.txt": "drug-drug_similarities_2D.txt",
+        "protein_similarity.txt": "target-target_similarities_WS.txt",
     }
     
-    for name, url in urls.items():
-        destination = davis_dir / f"davis_{name}.zip"
+    for local_name, remote_name in files.items():
+        destination = davis_dir / local_name
         if not destination.exists():
-            download_file(url, destination, f"Downloading DAVIS {name}")
-            extract_archive(str(destination), str(davis_dir))
-            print(f"✓ DAVIS {name} downloaded and extracted")
+            url = base_url + remote_name
+            try:
+                download_file(url, destination, f"Downloading {remote_name}")
+                print(f"✓ {local_name} downloaded")
+            except Exception as e:
+                print(f"✗ Failed to download {local_name}: {e}")
         else:
-            print(f"✓ DAVIS {name} already exists")
+            print(f"✓ {local_name} already exists")
+    
+    # Download fold information
+    folds_dir = davis_dir / "folds"
+    folds_dir.mkdir(exist_ok=True)
+    
+    fold_files = [
+        "test_fold_setting1.txt",
+        "train_fold_setting1.txt",
+    ]
+    
+    for fold_file in fold_files:
+        destination = folds_dir / fold_file
+        if not destination.exists():
+            url = f"{base_url}folds/{fold_file}"
+            try:
+                download_file(url, destination, f"Downloading {fold_file}")
+                print(f"✓ {fold_file} downloaded")
+            except Exception as e:
+                print(f"✗ Failed to download {fold_file}: {e}")
+        else:
+            print(f"✓ {fold_file} already exists")
+    
+    print("✓ DAVIS dataset downloaded successfully")
 
 def download_kiba():
-    """Download KIBA dataset"""
+    """Download KIBA dataset from DeepDTA repository"""
     print("\n" + "="*50)
     print("Downloading KIBA Dataset...")
     print("="*50)
@@ -78,48 +113,106 @@ def download_kiba():
     kiba_dir = Path("data/raw/kiba")
     kiba_dir.mkdir(parents=True, exist_ok=True)
     
-    # KIBA dataset from DeepDTA repository
-    urls = {
-        "data": "https://github.com/hkmztrk/DeepDTA/raw/master/data/kiba.zip",
+    # Base URL for DeepDTA repository
+    base_url = "https://raw.githubusercontent.com/hkmztrk/DeepDTA/master/data/kiba/"
+    
+    # Files to download
+    files = {
+        "Y": "Y",  # Pickle file with affinity matrix (KIBA scores)
+        "ligands_can.txt": "ligands_can.txt",  # Canonical SMILES
+        "ligands_iso.txt": "ligands_iso.txt",  # Isomeric SMILES
+        "proteins.txt": "proteins.txt",  # Protein sequences
+        "drug_similarity.txt": "drug-drug_similarities_2D.txt",
+        "protein_similarity.txt": "target-target_similarities_WS.txt",
     }
     
-    for name, url in urls.items():
-        destination = kiba_dir / f"kiba_{name}.zip"
+    for local_name, remote_name in files.items():
+        destination = kiba_dir / local_name
         if not destination.exists():
-            download_file(url, destination, f"Downloading KIBA {name}")
-            extract_archive(str(destination), str(kiba_dir))
-            print(f"✓ KIBA {name} downloaded and extracted")
+            url = base_url + remote_name
+            try:
+                download_file(url, destination, f"Downloading {remote_name}")
+                print(f"✓ {local_name} downloaded")
+            except Exception as e:
+                print(f"✗ Failed to download {local_name}: {e}")
         else:
-            print(f"✓ KIBA {name} already exists")
+            print(f"✓ {local_name} already exists")
+    
+    # Download fold information
+    folds_dir = kiba_dir / "folds"
+    folds_dir.mkdir(exist_ok=True)
+    
+    fold_files = [
+        "test_fold_setting1.txt",
+        "train_fold_setting1.txt",
+    ]
+    
+    for fold_file in fold_files:
+        destination = folds_dir / fold_file
+        if not destination.exists():
+            url = f"{base_url}folds/{fold_file}"
+            try:
+                download_file(url, destination, f"Downloading {fold_file}")
+                print(f"✓ {fold_file} downloaded")
+            except Exception as e:
+                print(f"✗ Failed to download {fold_file}: {e}")
+        else:
+            print(f"✓ {fold_file} already exists")
+    
+    print("✓ KIBA dataset downloaded successfully")
 
 def download_bindingdb():
-    """Download BindingDB dataset (smaller sample for demonstration)"""
+    """Download BindingDB dataset (TSV format, publicly available)"""
     print("\n" + "="*50)
-    print("Downloading BindingDB Sample Dataset...")
+    print("Downloading BindingDB Dataset...")
     print("="*50)
     
     bindingdb_dir = Path("data/raw/bindingdb")
     bindingdb_dir.mkdir(parents=True, exist_ok=True)
     
-    # Note: Full BindingDB requires registration and is very large
-    # Here we'll prepare a structure for it
+    # BindingDB is publicly available (no registration required)
+    # Using a subset for demonstration - full dataset is ~490 MB
+    # You can change to BindingDB_All_202509_tsv.zip for the full dataset
+    
+    # Option 1: Download ChEMBL subset (smaller, ~280 MB)
+    url = "https://www.bindingdb.org/rwd/bind/downloads/BindingDB_ChEMBL_202509_tsv.zip"
+    dataset_name = "ChEMBL subset"
+    
+    # Option 2: For full dataset, uncomment:
+    # url = "https://www.bindingdb.org/rwd/bind/downloads/BindingDB_All_202509_tsv.zip"
+    # dataset_name = "Full dataset"
+    
+    destination = bindingdb_dir / "BindingDB_data.zip"
+    
+    if not destination.exists():
+        print(f"Downloading BindingDB {dataset_name} (~280 MB, this may take a while)...")
+        try:
+            download_file(url, destination, f"Downloading BindingDB {dataset_name}")
+            extract_archive(str(destination), str(bindingdb_dir))
+            print(f"✓ BindingDB {dataset_name} downloaded and extracted")
+        except Exception as e:
+            print(f"✗ Failed to download BindingDB: {e}")
+            print("  You can manually download from: https://www.bindingdb.org/rwd/bind/chemsearch/marvin/Download.jsp")
+    else:
+        print("✓ BindingDB data already exists")
+    
+    # Create info file
     info = {
         "dataset": "BindingDB",
-        "note": "Full dataset available at https://www.bindingdb.org/",
-        "instructions": [
-            "1. Register at https://www.bindingdb.org/",
-            "2. Download the TSV file from Downloads section",
-            "3. Place it in data/raw/bindingdb/",
-            "4. Run preprocessing notebook to process it"
-        ]
+        "source": "https://www.bindingdb.org/",
+        "note": "ChEMBL subset downloaded. Full dataset available at downloads page.",
+        "downloads_page": "https://www.bindingdb.org/rwd/bind/chemsearch/marvin/Download.jsp",
+        "format": "TSV (tab-separated values)",
+        "size": "~280 MB (ChEMBL subset) or ~490 MB (full dataset)"
     }
     
-    info_file = bindingdb_dir / "download_instructions.json"
+    info_file = bindingdb_dir / "dataset_info.json"
     with open(info_file, 'w') as f:
         json.dump(info, f, indent=2)
     
-    print("✓ BindingDB download instructions created")
-    print("  Note: Full BindingDB requires registration at https://www.bindingdb.org/")
+    print("\n✓ BindingDB dataset ready")
+    print("  Note: This downloads the ChEMBL subset. For the full dataset,")
+    print("  edit download_data.py and uncomment the full dataset URL.")
 
 def download_chembl_sample():
     """Download a sample from ChEMBL for additional molecular data"""

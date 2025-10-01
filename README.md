@@ -50,7 +50,7 @@ Graph_GNN_Pytorch_PDB/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/Graph_GNN_Pytorch_PDB.git
+git clone https://github.com/Kambeiz/Graph_GNN_Pytorch_PDB.git
 cd Graph_GNN_Pytorch_PDB
 
 # Create conda environment from environment.yml (recommended)

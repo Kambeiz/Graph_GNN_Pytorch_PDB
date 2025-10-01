@@ -1,0 +1,528 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# 01. Drug-Target Interaction Data Exploration\n",
+    "\n",
+    "This notebook explores the DAVIS and KIBA datasets for drug-target interaction prediction.\n",
+    "\n",
+    "## Contents\n",
+    "1. Load and explore DAVIS dataset\n",
+    "2. Load and explore KIBA dataset\n",
+    "3. Analyze molecular data\n",
+    "4. Analyze protein sequences\n",
+    "5. Visualize interaction matrices\n",
+    "6. Statistical analysis of binding affinities"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "ModuleNotFoundError",
+     "evalue": "No module named 'numpy'",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[0;31mModuleNotFoundError\u001b[0m                       Traceback (most recent call last)",
+      "Cell \u001b[0;32mIn[3], line 6\u001b[0m\n\u001b[1;32m      4\u001b[0m \u001b[38;5;28;01mimport\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;21;01mjson\u001b[39;00m\n\u001b[1;32m      5\u001b[0m \u001b[38;5;28;01mimport\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;21;01mpickle\u001b[39;00m\n\u001b[0;32m----> 6\u001b[0m \u001b[38;5;28;01mimport\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;21;01mnumpy\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mas\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;21;01mnp\u001b[39;00m\n\u001b[1;32m      7\u001b[0m \u001b[38;5;28;01mimport\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;21;01mpandas\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mas\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;21;01mpd\u001b[39;00m\n\u001b[1;32m      8\u001b[0m \u001b[38;5;28;01mimport\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;21;01mmatplotlib\u001b[39;00m\u001b[38;5;21;01m.\u001b[39;00m\u001b[38;5;21;01mpyplot\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;28;01mas\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[38;5;21;01mplt\u001b[39;00m\n",
+      "\u001b[0;31mModuleNotFoundError\u001b[0m: No module named 'numpy'"
+     ]
+    }
+   ],
+   "source": [
+    "# Import required libraries\n",
+    "import os\n",
+    "import sys\n",
+    "import json\n",
+    "import pickle\n",
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "import matplotlib.pyplot as plt\n",
+    "import seaborn as sns\n",
+    "from pathlib import Path\n",
+    "from tqdm.notebook import tqdm\n",
+    "\n",
+    "# Chemical informatics\n",
+    "from rdkit import Chem\n",
+    "from rdkit.Chem import Descriptors, Draw\n",
+    "from rdkit.Chem.Draw import IPythonConsole\n",
+    "\n",
+    "# Set up paths\n",
+    "PROJECT_ROOT = Path('../')\n",
+    "DATA_DIR = PROJECT_ROOT / 'data'\n",
+    "RAW_DATA = DATA_DIR / 'raw'\n",
+    "\n",
+    "# Plotting settings\n",
+    "plt.style.use('seaborn-v0_8-darkgrid')\n",
+    "sns.set_palette('husl')\n",
+    "%matplotlib inline"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 1. Load DAVIS Dataset"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def load_davis_data():\n",
+    "    \"\"\"Load DAVIS dataset\"\"\"\n",
+    "    davis_dir = RAW_DATA / 'davis'\n",
+    "    \n",
+    "    # Load affinity matrix\n",
+    "    affinity = pickle.load(open(davis_dir / 'Y', 'rb'), encoding='latin1')\n",
+    "    \n",
+    "    # Load drug SMILES\n",
+    "    with open(davis_dir / 'ligands_can.txt', 'r') as f:\n",
+    "        drug_smiles_list = [line.strip() for line in f if line.strip()]\n    drug_smiles = {i: smiles for i, smiles in enumerate(drug_smiles_list)}\n",
+    "    \n",
+    "    # Load target sequences\n",
+    "    with open(davis_dir / 'proteins.txt', 'r') as f:\n",
+    "        protein_sequences_list = [line.strip() for line in f if line.strip()]\n    target_sequences = {i: seq for i, seq in enumerate(protein_sequences_list)}\n",
+    "    \n",
+    "    return {\n",
+    "        'affinity': affinity,\n",
+    "        'drug_smiles': drug_smiles,\n",
+    "        'target_sequences': target_sequences\n",
+    "    }\n",
+    "\n",
+    "# Load DAVIS data\n",
+    "davis_data = load_davis_data()\n",
+    "print(f\"DAVIS Dataset:\")\n",
+    "print(f\"  - Number of drugs: {len(davis_data['drug_smiles'])}\")\n",
+    "print(f\"  - Number of targets: {len(davis_data['target_sequences'])}\")\n",
+    "print(f\"  - Affinity matrix shape: {davis_data['affinity'].shape}\")\n",
+    "print(f\"  - Total interactions: {np.prod(davis_data['affinity'].shape)}\")\n",
+    "print(f\"  - Non-zero interactions: {np.sum(davis_data['affinity'] < 30000)}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 2. Load KIBA Dataset"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def load_kiba_data():\n",
+    "    \"\"\"Load KIBA dataset\"\"\"\n",
+    "    kiba_dir = RAW_DATA / 'kiba'\n",
+    "    \n",
+    "    # Load affinity matrix\n",
+    "    affinity = pickle.load(open(kiba_dir / 'Y', 'rb'), encoding='latin1')\n",
+    "    \n",
+    "    # Load drug SMILES\n",
+    "    with open(kiba_dir / 'ligands_can.txt', 'r') as f:\n",
+    "        drug_smiles_list = [line.strip() for line in f if line.strip()]\n    drug_smiles = {i: smiles for i, smiles in enumerate(drug_smiles_list)}\n",
+    "    \n",
+    "    # Load target sequences\n",
+    "    with open(kiba_dir / 'proteins.txt', 'r') as f:\n",
+    "        protein_sequences_list = [line.strip() for line in f if line.strip()]\n    target_sequences = {i: seq for i, seq in enumerate(protein_sequences_list)}\n",
+    "    \n",
+    "    return {\n",
+    "        'affinity': affinity,\n",
+    "        'drug_smiles': drug_smiles,\n",
+    "        'target_sequences': target_sequences\n",
+    "    }\n",
+    "\n",
+    "# Load KIBA data\n",
+    "kiba_data = load_kiba_data()\n",
+    "print(f\"KIBA Dataset:\")\n",
+    "print(f\"  - Number of drugs: {len(kiba_data['drug_smiles'])}\")\n",
+    "print(f\"  - Number of targets: {len(kiba_data['target_sequences'])}\")\n",
+    "print(f\"  - Affinity matrix shape: {kiba_data['affinity'].shape}\")\n",
+    "print(f\"  - Total interactions: {np.prod(kiba_data['affinity'].shape)}\")\n",
+    "print(f\"  - Non-zero interactions: {np.sum(~np.isnan(kiba_data['affinity']))}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 3. Analyze Molecular data"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def analyze_molecules(smiles_dict, dataset_name):\n",
+    "    \"\"\"Analyze molecular properties\"\"\"\n",
+    "    properties = []\n",
+    "    \n",
+    "    for name, smiles in tqdm(list(smiles_dict.items())[:100], desc=f\"Analyzing {dataset_name} molecules\"):\n",
+    "        mol = Chem.MolFromSmiles(smiles)\n",
+    "        if mol is not None:\n",
+    "            properties.append({\n",
+    "                'name': name,\n",
+    "                'smiles': smiles,\n",
+    "                'mol_weight': Descriptors.MolWt(mol),\n",
+    "                'logp': Descriptors.MolLogP(mol),\n",
+    "                'num_atoms': mol.GetNumAtoms(),\n",
+    "                'num_bonds': mol.GetNumBonds(),\n",
+    "                'num_rings': Descriptors.RingCount(mol),\n",
+    "                'num_rotatable_bonds': Descriptors.NumRotatableBonds(mol),\n",
+    "                'tpsa': Descriptors.TPSA(mol)\n",
+    "            })\n",
+    "    \n",
+    "    return pd.DataFrame(properties)\n",
+    "\n",
+    "# Analyze DAVIS molecules\n",
+    "davis_mol_props = analyze_molecules(davis_data['drug_smiles'], 'DAVIS')\n",
+    "print(\"\\nDAVIS Molecular Properties:\")\n",
+    "print(davis_mol_props.describe())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Visualize molecular property distributions\n",
+    "fig, axes = plt.subplots(2, 3, figsize=(15, 8))\n",
+    "properties_to_plot = ['mol_weight', 'logp', 'num_atoms', 'num_rings', 'num_rotatable_bonds', 'tpsa']\n",
+    "\n",
+    "for idx, prop in enumerate(properties_to_plot):\n",
+    "    ax = axes[idx // 3, idx % 3]\n",
+    "    davis_mol_props[prop].hist(ax=ax, bins=20, alpha=0.7, label='DAVIS')\n",
+    "    ax.set_xlabel(prop.replace('_', ' ').title())\n",
+    "    ax.set_ylabel('Frequency')\n",
+    "    ax.legend()\n",
+    "\n",
+    "plt.suptitle('Molecular Property Distributions', fontsize=16)\n",
+    "plt.tight_layout()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 4. Visualize Sample Molecules"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Display sample molecules\n",
+    "sample_drugs = list(davis_data['drug_smiles'].items())[:6]\n",
+    "mols = [Chem.MolFromSmiles(smiles) for name, smiles in sample_drugs]\n",
+    "legends = [name for name, _ in sample_drugs]\n",
+    "\n",
+    "# Create grid image\n",
+    "img = Draw.MolsToGridImage(mols, molsPerRow=3, subImgSize=(300, 300), legends=legends)\n",
+    "img"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 5. Analyze Protein Sequences"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def analyze_proteins(sequences_dict, dataset_name):\n",
+    "    \"\"\"Analyze protein sequence properties\"\"\"\n",
+    "    properties = []\n",
+    "    \n",
+    "    for name, sequence in sequences_dict.items():\n",
+    "        # Basic sequence properties\n",
+    "        properties.append({\n",
+    "            'name': name,\n",
+    "            'length': len(sequence),\n",
+    "            'num_cysteines': sequence.count('C'),\n",
+    "            'hydrophobic_ratio': sum(1 for aa in sequence if aa in 'AILMFWV') / len(sequence),\n",
+    "            'charged_ratio': sum(1 for aa in sequence if aa in 'DEKR') / len(sequence)\n",
+    "        })\n",
+    "    \n",
+    "    return pd.DataFrame(properties)\n",
+    "\n",
+    "# Analyze proteins\n",
+    "davis_prot_props = analyze_proteins(davis_data['target_sequences'], 'DAVIS')\n",
+    "print(\"DAVIS Protein Properties:\")\n",
+    "print(davis_prot_props.describe())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Visualize protein length distribution\n",
+    "fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))\n",
+    "\n",
+    "ax1.hist(davis_prot_props['length'], bins=30, alpha=0.7, color='blue')\n",
+    "ax1.set_xlabel('Protein Length')\n",
+    "ax1.set_ylabel('Frequency')\n",
+    "ax1.set_title('DAVIS Protein Length Distribution')\n",
+    "\n",
+    "ax2.scatter(davis_prot_props['hydrophobic_ratio'], \n",
+    "           davis_prot_props['charged_ratio'], alpha=0.5)\n",
+    "ax2.set_xlabel('Hydrophobic Ratio')\n",
+    "ax2.set_ylabel('Charged Ratio')\n",
+    "ax2.set_title('Protein Property Correlation')\n",
+    "\n",
+    "plt.tight_layout()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 6. Visualize Interaction Matrices"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Visualize DAVIS interaction matrix\n",
+    "fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))\n",
+    "\n",
+    "# Full interaction matrix (subset for visibility)\n",
+    "subset_size = 50\n",
+    "davis_subset = davis_data['affinity'][:subset_size, :subset_size]\n",
+    "\n",
+    "# Convert Kd to pKd for better visualization (higher = stronger binding)\n",
+    "davis_pkd = -np.log10(davis_subset / 1e9)\n",
+    "davis_pkd[davis_subset >= 30000] = 0  # Set non-interactions to 0\n",
+    "\n",
+    "im1 = ax1.imshow(davis_pkd, cmap='YlOrRd', aspect='auto')\n",
+    "ax1.set_xlabel('Drug Index')\n",
+    "ax1.set_ylabel('Target Index')\n",
+    "ax1.set_title(f'DAVIS Interaction Matrix (First {subset_size}x{subset_size})')\n",
+    "plt.colorbar(im1, ax=ax1, label='pKd')\n",
+    "\n",
+    "# Distribution of binding affinities\n",
+    "valid_affinities = davis_data['affinity'][davis_data['affinity'] < 30000]\n",
+    "pkd_values = -np.log10(valid_affinities / 1e9)\n",
+    "\n",
+    "ax2.hist(pkd_values, bins=50, alpha=0.7, color='orange')\n",
+    "ax2.set_xlabel('pKd')\n",
+    "ax2.set_ylabel('Frequency')\n",
+    "ax2.set_title('Distribution of Binding Affinities (DAVIS)')\n",
+    "\n",
+    "plt.tight_layout()\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 7. Statistical Summary"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def calculate_dataset_statistics(data, dataset_name):\n",
+    "    \"\"\"Calculate comprehensive dataset statistics\"\"\"\n",
+    "    affinity = data['affinity']\n",
+    "    \n",
+    "    if dataset_name == 'DAVIS':\n",
+    "        valid_mask = affinity < 30000\n",
+    "    else:  # KIBA\n",
+    "        valid_mask = ~np.isnan(affinity)\n",
+    "    \n",
+    "    stats = {\n",
+    "        'Dataset': dataset_name,\n",
+    "        'Num Drugs': len(data['drug_smiles']),\n",
+    "        'Num Targets': len(data['target_sequences']),\n",
+    "        'Total Pairs': np.prod(affinity.shape),\n",
+    "        'Known Interactions': np.sum(valid_mask),\n",
+    "        'Sparsity (%)': (1 - np.sum(valid_mask) / np.prod(affinity.shape)) * 100,\n",
+    "        'Avg Interactions/Drug': np.sum(valid_mask) / len(data['drug_smiles']),\n",
+    "        'Avg Interactions/Target': np.sum(valid_mask) / len(data['target_sequences'])\n",
+    "    }\n",
+    "    \n",
+    "    return stats\n",
+    "\n",
+    "# Calculate statistics for both datasets\n",
+    "davis_stats = calculate_dataset_statistics(davis_data, 'DAVIS')\n",
+    "kiba_stats = calculate_dataset_statistics(kiba_data, 'KIBA')\n",
+    "\n",
+    "# Create comparison dataframe\n",
+    "stats_df = pd.DataFrame([davis_stats, kiba_stats])\n",
+    "print(\"\\nDataset Comparison:\")\n",
+    "print(stats_df.to_string(index=False))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 8. Data Quality Analysis"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def check_data_quality(data, dataset_name):\n",
+    "    \"\"\"Check for data quality issues\"\"\"\n",
+    "    print(f\"\\n{dataset_name} Data Quality Check:\")\n",
+    "    print(\"=\"*50)\n",
+    "    \n",
+    "    # Check for invalid SMILES\n",
+    "    invalid_smiles = []\n",
+    "    for name, smiles in data['drug_smiles'].items():\n",
+    "        mol = Chem.MolFromSmiles(smiles)\n",
+    "        if mol is None:\n",
+    "            invalid_smiles.append(name)\n",
+    "    \n",
+    "    print(f\"✓ Invalid SMILES: {len(invalid_smiles)} / {len(data['drug_smiles'])}\")\n",
+    "    \n",
+    "    # Check protein sequences\n",
+    "    valid_amino_acids = set('ACDEFGHIKLMNPQRSTVWY')\n",
+    "    invalid_sequences = []\n",
+    "    \n",
+    "    for name, seq in data['target_sequences'].items():\n",
+    "        if not all(aa in valid_amino_acids for aa in seq):\n",
+    "            invalid_sequences.append(name)\n",
+    "    \n",
+    "    print(f\"✓ Invalid protein sequences: {len(invalid_sequences)} / {len(data['target_sequences'])}\")\n",
+    "    \n",
+    "    # Check affinity matrix\n",
+    "    if dataset_name == 'DAVIS':\n",
+    "        print(f\"✓ Affinity range: {np.min(data['affinity']):.2f} - {np.max(data['affinity']):.2f}\")\n",
+    "        print(f\"✓ Number of 30000 values (no interaction): {np.sum(data['affinity'] >= 30000)}\")\n",
+    "    else:\n",
+    "        valid_affinities = data['affinity'][~np.isnan(data['affinity'])]\n",
+    "        print(f\"✓ Valid affinity range: {np.min(valid_affinities):.2f} - {np.max(valid_affinities):.2f}\")\n",
+    "        print(f\"✓ Number of NaN values: {np.sum(np.isnan(data['affinity']))}\")\n",
+    "\n",
+    "# Check data quality\n",
+    "check_data_quality(davis_data, 'DAVIS')\n",
+    "check_data_quality(kiba_data, 'KIBA')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 9. Save Processed Data Info"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Save dataset information for later use\n",
+    "processed_dir = DATA_DIR / 'processed'\n",
+    "processed_dir.mkdir(exist_ok=True)\n",
+    "\n",
+    "dataset_info = {\n",
+    "    'davis': {\n",
+    "        'num_drugs': len(davis_data['drug_smiles']),\n",
+    "        'num_targets': len(davis_data['target_sequences']),\n",
+    "        'stats': davis_stats\n",
+    "    },\n",
+    "    'kiba': {\n",
+    "        'num_drugs': len(kiba_data['drug_smiles']),\n",
+    "        'num_targets': len(kiba_data['target_sequences']),\n",
+    "        'stats': kiba_stats\n",
+    "    }\n",
+    "}\n",
+    "\n",
+    "with open(processed_dir / 'dataset_info.json', 'w') as f:\n",
+    "    json.dump(dataset_info, f, indent=2)\n",
+    "\n",
+    "print(\"\\n✓ Dataset information saved to data/processed/dataset_info.json\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Summary\n",
+    "\n",
+    "### Key Findings:\n",
+    "\n",
+    "1. **DAVIS Dataset**:\n",
+    "   - Focused on kinase proteins\n",
+    "   - Smaller but high-quality dataset\n",
+    "   - Uses Kd values for binding affinity\n",
+    "\n",
+    "2. **KIBA Dataset**:\n",
+    "   - Larger dataset with more compounds\n",
+    "   - Combined bioactivity scores\n",
+    "   - More sparse than DAVIS\n",
+    "\n",
+    "3. **Molecular Properties**:\n",
+    "   - Drug molecules show diverse chemical properties\n",
+    "   - Most are drug-like (following Lipinski's rule of five)\n",
+    "\n",
+    "4. **Protein Targets**:\n",
+    "   - Mainly kinase proteins\n",
+    "   - Wide range of sequence lengths\n",
+    "\n",
+    "### Next Steps:\n",
+    "1. Preprocess data and create molecular graphs\n",
+    "2. Generate protein representations\n",
+    "3. Create train/validation/test splits\n",
+    "4. Build GNN models for DTI prediction"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "dti-gnn",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.23"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
