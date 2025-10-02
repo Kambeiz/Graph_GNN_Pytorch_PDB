@@ -15,7 +15,7 @@ from torch.nn import Sequential, Linear, ReLU, BatchNorm1d, Dropout
 class GCN_DTI(nn.Module):
     """Graph Convolutional Network for DTI prediction"""
     
-    def __init__(self, num_features, hidden_dim=128, num_layers=3, dropout=0.2):
+    def __init__(self, num_features, hidden_dim=128, num_layers=3, dropout=0.2, protein_dim=10):
         super(GCN_DTI, self).__init__()
         
         self.num_layers = num_layers
@@ -34,12 +34,15 @@ class GCN_DTI(nn.Module):
             self.convs.append(GCNConv(hidden_dim, hidden_dim))
             self.batch_norms.append(BatchNorm1d(hidden_dim))
         
-        # Readout layers
-        self.fc1 = Linear(hidden_dim * 3, hidden_dim)  # *3 for three pooling methods
+        # Protein feature processing
+        self.protein_fc = Linear(protein_dim, hidden_dim)
+        
+        # Readout layers - updated to handle concatenated drug + protein features
+        self.fc1 = Linear(hidden_dim * 4, hidden_dim)  # *3 for pooling + 1 for protein
         self.fc2 = Linear(hidden_dim, hidden_dim // 2)
         self.fc3 = Linear(hidden_dim // 2, 1)
         
-    def forward(self, x, edge_index, batch):
+    def forward(self, x, edge_index, batch, protein_features=None):
         # Graph convolutions
         for i in range(self.num_layers):
             x = self.convs[i](x, edge_index)
@@ -53,6 +56,11 @@ class GCN_DTI(nn.Module):
         x_sum = global_add_pool(x, batch)
         
         x = torch.cat([x_mean, x_max, x_sum], dim=1)
+        
+        # Add protein features if provided
+        if protein_features is not None:
+            protein_emb = F.relu(self.protein_fc(protein_features))
+            x = torch.cat([x, protein_emb], dim=1)
         
         # Final MLP
         x = F.relu(self.fc1(x))
@@ -68,7 +76,7 @@ class GAT_DTI(nn.Module):
     """Graph Attention Network for DTI prediction"""
     
     def __init__(self, num_features, hidden_dim=128, num_layers=3, 
-                 heads=8, dropout=0.2):
+                 heads=8, dropout=0.2, protein_dim=10):
         super(GAT_DTI, self).__init__()
         
         self.num_layers = num_layers
@@ -91,15 +99,18 @@ class GAT_DTI(nn.Module):
         self.convs.append(GATConv(hidden_dim * heads, hidden_dim, heads=1, dropout=dropout))
         self.batch_norms.append(BatchNorm1d(hidden_dim))
         
-        # Readout layers
-        self.fc1 = Linear(hidden_dim * 3, hidden_dim)
+        # Protein feature processing
+        self.protein_fc = Linear(protein_dim, hidden_dim)
+        
+        # Readout layers - updated to handle concatenated drug + protein features
+        self.fc1 = Linear(hidden_dim * 4, hidden_dim)  # *3 for pooling + 1 for protein
         self.fc2 = Linear(hidden_dim, hidden_dim // 2)
         self.fc3 = Linear(hidden_dim // 2, 1)
         
         # Attention weights for interpretability
         self.attention_weights = None
         
-    def forward(self, x, edge_index, batch, return_attention=False):
+    def forward(self, x, edge_index, batch, protein_features=None, return_attention=False):
         attention_weights = []
         
         # Graph attention layers
@@ -123,6 +134,11 @@ class GAT_DTI(nn.Module):
         x_sum = global_add_pool(x, batch)
         
         x = torch.cat([x_mean, x_max, x_sum], dim=1)
+        
+        # Add protein features if provided
+        if protein_features is not None:
+            protein_emb = F.relu(self.protein_fc(protein_features))
+            x = torch.cat([x, protein_emb], dim=1)
         
         # Final MLP
         x = F.relu(self.fc1(x))
@@ -152,16 +168,24 @@ class GraphSAGE_DTI(nn.Module):
         self.batch_norms.append(BatchNorm1d(hidden_dim))
         
         # Hidden layers
+        nn_hidden = Sequential(
+            Linear(hidden_dim, hidden_dim),
+            ReLU(),
+            Linear(hidden_dim, hidden_dim)
+        )
         for _ in range(num_layers - 1):
-            self.convs.append(SAGEConv(hidden_dim, hidden_dim))
+            self.convs.append(GINConv(nn_hidden))
             self.batch_norms.append(BatchNorm1d(hidden_dim))
         
-        # Readout layers
-        self.fc1 = Linear(hidden_dim * 3, hidden_dim)
+        # Protein feature processing
+        self.protein_fc = Linear(protein_dim, hidden_dim)
+        
+        # Readout layers - updated to handle concatenated drug + protein features
+        self.fc1 = Linear(hidden_dim * 4, hidden_dim)  # *3 for pooling + 1 for protein
         self.fc2 = Linear(hidden_dim, hidden_dim // 2)
         self.fc3 = Linear(hidden_dim // 2, 1)
         
-    def forward(self, x, edge_index, batch):
+    def forward(self, x, edge_index, batch, protein_features=None):
         # GraphSAGE convolutions
         for i in range(self.num_layers):
             x = self.convs[i](x, edge_index)
@@ -176,6 +200,11 @@ class GraphSAGE_DTI(nn.Module):
         
         x = torch.cat([x_mean, x_max, x_sum], dim=1)
         
+        # Add protein features if provided
+        if protein_features is not None:
+            protein_emb = F.relu(self.protein_fc(protein_features))
+            x = torch.cat([x, protein_emb], dim=1)
+        
         # Final MLP
         x = F.relu(self.fc1(x))
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -189,7 +218,7 @@ class GraphSAGE_DTI(nn.Module):
 class GIN_DTI(nn.Module):
     """Graph Isomorphism Network for DTI prediction"""
     
-    def __init__(self, num_features, hidden_dim=128, num_layers=3, dropout=0.2):
+    def __init__(self, num_features, hidden_dim=128, num_layers=3, dropout=0.2, protein_dim=10):
         super(GIN_DTI, self).__init__()
         
         self.num_layers = num_layers
@@ -210,20 +239,23 @@ class GIN_DTI(nn.Module):
         
         # Hidden layers
         for _ in range(num_layers - 1):
-            nn_hidden = Sequential(
+            nn_layer = Sequential(
                 Linear(hidden_dim, hidden_dim),
                 ReLU(),
                 Linear(hidden_dim, hidden_dim)
             )
-            self.convs.append(GINConv(nn_hidden))
+            self.convs.append(GINConv(nn_layer))
             self.batch_norms.append(BatchNorm1d(hidden_dim))
         
-        # Readout layers
-        self.fc1 = Linear(hidden_dim * 3, hidden_dim)
+        # Protein feature processing
+        self.protein_fc = Linear(protein_dim, hidden_dim)
+        
+        # Readout layers - updated to handle concatenated drug + protein features
+        self.fc1 = Linear(hidden_dim * 4, hidden_dim)  # *3 for pooling + 1 for protein
         self.fc2 = Linear(hidden_dim, hidden_dim // 2)
         self.fc3 = Linear(hidden_dim // 2, 1)
         
-    def forward(self, x, edge_index, batch):
+    def forward(self, x, edge_index, batch, protein_features=None):
         # GIN convolutions
         for i in range(self.num_layers):
             x = self.convs[i](x, edge_index)
@@ -237,6 +269,11 @@ class GIN_DTI(nn.Module):
         x_sum = global_add_pool(x, batch)
         
         x = torch.cat([x_mean, x_max, x_sum], dim=1)
+        
+        # Add protein features if provided
+        if protein_features is not None:
+            protein_emb = F.relu(self.protein_fc(protein_features))
+            x = torch.cat([x, protein_emb], dim=1)
         
         # Final MLP
         x = F.relu(self.fc1(x))

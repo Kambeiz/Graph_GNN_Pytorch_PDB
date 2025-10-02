@@ -1,6 +1,16 @@
-# Core PyTorch extensions (pip-only packages)
-torch-cluster>=1.6.3
-torch-spline-conv>=1.2.2
+# PyTorch with CUDA 12.1 support
+torch==2.3.1
+torchvision==0.18.1
+torchaudio==2.3.1
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+# PyTorch Geometric and extensions (must match PyTorch version)
+torch-geometric
+torch-scatter
+torch-sparse
+torch-cluster
+torch-spline-conv
+--find-links https://data.pyg.org/whl/torch-2.3.0+cu121.html
 
 # Additional packages that might need pip installation
 # (Most packages are now handled by conda environment.yml)
