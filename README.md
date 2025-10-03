@@ -81,6 +81,7 @@ Run the notebooks in order:
 jupyter lab
 # Then run notebooks/01_data_exploration.ipynb
 # Then run notebooks/02_molecular_graph_preprocessing.ipynb
+# etc...
 ```
 
 ### 4. Model Training
@@ -184,9 +185,8 @@ This project is ideal for:
 - **Machine Learning**: Multi-modal learning, attention mechanisms
 - **Software Engineering**: Clean architecture, documentation
 
-## 🤝 Contributing
+## 📝 Potential to do list:
 
-Contributions are welcome! Areas for improvement:
 
 - [ ] Add more GNN architectures (e.g., PNA, DimeNet)
 - [ ] Implement 3D molecular features
@@ -206,11 +206,7 @@ MIT License - feel free to use this project for your portfolio!
 
 ## 👤 Author
 
-[Your Name]
-- LinkedIn: [Your LinkedIn]
-- GitHub: [Your GitHub]
-- Email: [Your Email]
-
----
+Debbah Nagi 
+mail adress: debbah.nagi@gmail.com
 
 **Note**: This project demonstrates proficiency in PyTorch, Graph Neural Networks, and bioinformatics for drug discovery applications - exactly what modern AI/ML roles in biotechnology require.
